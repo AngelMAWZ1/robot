@@ -88,12 +88,11 @@
                 <input id="sliderWristRoll" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
             </div>
             
-            <!-- J6: Garra --><div class="mb-4">
-                <label for="sliderGripper" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Garra</span>
-                    <span id="labelGripper">Cerrada</span>
-                </label>
-                <input id="sliderGripper" type="range" min="0" max="50" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            <!-- --- MODIFICADO: Slider de Garra reemplazado por un botón --- -->
+            <!-- J6: Garra (Botón) --><div class="mb-4">
+                <button id="gripperButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                    Cargando...
+                </button>
             </div>
             
             <!-- Botón de Reset --><button id="resetButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
@@ -111,8 +110,13 @@
         // --- MODIFICADO: Añadido Clock ---
         let scene, camera, renderer, controls, clock;
         let base, joint1, arm1, joint2, arm2, joint3, arm3, joint4, gripperGroup, finger1, finger2;
-        let sliderBase, sliderShoulder, sliderElbow, sliderWristPitch, sliderWristRoll, sliderGripper;
-        let labelBase, labelShoulder, labelElbow, labelWristPitch, labelWristRoll, labelGripper;
+        // --- MODIFICADO: sliderGripper y labelGripper eliminados ---
+        let sliderBase, sliderShoulder, sliderElbow, sliderWristPitch, sliderWristRoll;
+        let labelBase, labelShoulder, labelElbow, labelWristPitch, labelWristRoll;
+        
+        // --- NUEVO: Botón y estado de la garra ---
+        let gripperButton;
+        let isGripperClosed = true; // La garra empieza cerrada
 
         // --- Variables para el objeto y estado de agarre ---
         let targetBox;
@@ -271,7 +275,8 @@
             joint1Mesh.castShadow = true;
             joint1.add(joint1Mesh);
 
-            const arm1Geo = new THREE.BoxGeometry(0.8, 4, 1);
+            // --- MODIFICADO: Geometría del brazo 1 (Cilindro) ---
+            const arm1Geo = new THREE.CylinderGeometry(0.4, 0.4, 4, 32);
             arm1 = new THREE.Mesh(arm1Geo, armMaterial);
             arm1.position.y = 2; // Desplazado desde el pivote
             arm1.castShadow = true;
@@ -288,7 +293,8 @@
             joint2Mesh.castShadow = true;
             joint2.add(joint2Mesh);
 
-            const arm2Geo = new THREE.BoxGeometry(0.7, 3.5, 0.8);
+            // --- MODIFICADO: Geometría del brazo 2 (Cilindro) ---
+            const arm2Geo = new THREE.CylinderGeometry(0.35, 0.35, 3.5, 32);
             arm2 = new THREE.Mesh(arm2Geo, armMaterial);
             arm2.position.y = 1.75;
             arm2.castShadow = true;
@@ -361,21 +367,23 @@
             sliderElbow = document.getElementById('sliderElbow');
             sliderWristPitch = document.getElementById('sliderWristPitch');
             sliderWristRoll = document.getElementById('sliderWristRoll');
-            sliderGripper = document.getElementById('sliderGripper');
+            // --- MODIFICADO: Obtener el botón en lugar del slider ---
+            gripperButton = document.getElementById('gripperButton');
 
             labelBase = document.getElementById('labelBase');
             labelShoulder = document.getElementById('labelShoulder');
             labelElbow = document.getElementById('labelElbow');
             labelWristPitch = document.getElementById('labelWristPitch');
             labelWristRoll = document.getElementById('labelWristRoll');
-            labelGripper = document.getElementById('labelGripper');
+            // --- MODIFICADO: labelGripper eliminado ---
 
             sliderBase.addEventListener('input', updateRobot);
             sliderShoulder.addEventListener('input', updateRobot);
             sliderElbow.addEventListener('input', updateRobot);
             sliderWristPitch.addEventListener('input', updateRobot);
             sliderWristRoll.addEventListener('input', updateRobot);
-            sliderGripper.addEventListener('input', updateRobot);
+            // --- MODIFICADO: Event listener para el botón ---
+            gripperButton.addEventListener('click', toggleGripper);
             
             const resetButton = document.getElementById('resetButton');
             resetButton.addEventListener('click', resetRobot);
@@ -396,6 +404,28 @@
             });
             
             updateRobot();
+            // --- NUEVO: Sincronizar texto y color inicial del botón ---
+            updateGripperButton();
+        }
+
+        // --- NUEVO: Función para el botón de la garra ---
+        function toggleGripper() {
+            isGripperClosed = !isGripperClosed;
+            updateRobot(); // Aplicar el cambio visual
+            updateGripperButton(); // Actualizar el texto
+        }
+
+        // --- NUEVO: Función para actualizar el texto y color del botón ---
+        function updateGripperButton() {
+            if (isGripperClosed) {
+                gripperButton.textContent = 'Abrir Garra';
+                gripperButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                gripperButton.classList.add('bg-red-500', 'hover:bg-red-600');
+            } else {
+                gripperButton.textContent = 'Cerrar Garra';
+                gripperButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                gripperButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            }
         }
 
         function updateRobot() {
@@ -420,19 +450,19 @@
             joint4.rotation.y = wristRollAngle; // Roll sigue siendo en Y
             labelWristRoll.textContent = `${sliderWristRoll.value}°`;
             
-            const gripperValue = sliderGripper.value / 100; // Valor de 0 a 0.5
+            // --- MODIFICADO: Lógica de la garra basada en el estado (botón) ---
+            const gripperValue = isGripperClosed ? 0 : 0.5; // 0 = cerrado, 0.5 = abierto
             finger1.position.x = -0.3 - gripperValue;
             finger2.position.x = 0.3 + gripperValue;
             
-            // Lógica de la etiqueta de la garra
-            const gripperSliderValue = parseFloat(sliderGripper.value);
-            labelGripper.textContent = gripperSliderValue > 10 ? 'Abierta' : 'Cerrada';
+            // --- MODIFICADO: Lógica de la etiqueta eliminada ---
         }
 
         // --- Función para comprobar el agarre ---
         function checkGrasp() {
             // Salir si los objetos aún no están listos
-            if (!targetBox || !gripperGroup || !sliderGripper) return;
+            // --- MODIFICADO: sliderGripper eliminado de la comprobación ---
+            if (!targetBox || !gripperGroup) return;
 
             // Obtenemos la posición MUNDIAL de la garra y el cubo
             const gripperWorldPos = new THREE.Vector3();
@@ -447,14 +477,11 @@
             // Umbral de distancia para poder agarrar (¡ajusta este valor!)
             const graspThreshold = 1.2; 
             
-            // Umbral del slider para considerar la garra "cerrada"
-            const gripperSliderValue = parseFloat(sliderGripper.value);
-            const gripperClosedThreshold = 10; // (0-50)
-
+            // --- MODIFICADO: Comprobación de agarre basada en el estado booleano ---
             if (!isHoldingBox) {
                 // --- INTENTAR AGARRAR ---
                 // Si la garra está cerca Y está cerrada...
-                if (distance < graspThreshold && gripperSliderValue <= gripperClosedThreshold) {
+                if (distance < graspThreshold && isGripperClosed) {
                     isHoldingBox = true;
                     // Adjuntamos el cubo a la garra.
                     gripperGroup.attach(targetBox);
@@ -466,7 +493,7 @@
             } else {
                 // --- INTENTAR SOLTAR ---
                 // Si estamos sosteniendo el cubo Y la garra se abre...
-                if (gripperSliderValue > gripperClosedThreshold + 5) { // +5 para evitar "parpadeo"
+                if (!isGripperClosed) {
                     isHoldingBox = false;
                     // Adjuntamos el cubo de vuelta a la escena principal
                     scene.attach(targetBox);
@@ -486,9 +513,12 @@
             sliderElbow.value = 0;
             sliderWristPitch.value = 0;
             sliderWristRoll.value = 0;
-            sliderGripper.value = 0;
+            // --- MODIFICADO: Resetear el estado de la garra ---
+            isGripperClosed = true;
             
             updateRobot(); // Aplicar visualmente el reseteo
+            // --- NUEVO: Actualizar texto del botón ---
+            updateGripperButton(); 
 
             // --- MODIFICADO: Resetear también el objeto y su velocidad ---
             if (isHoldingBox) {
