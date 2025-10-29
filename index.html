@@ -21,7 +21,8 @@
             appearance: none;
             width: 20px;
             height: 20px;
-            background: #34d399; /* emerald-400 */
+            /* --- MODIFICADO --- */
+            background: #4ceb38;
             border-radius: 50%;
             cursor: pointer;
             margin-top: -6px;
@@ -29,10 +30,29 @@
         input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
-            background: #34d399;
+            /* --- MODIFICADO --- */
+            background: #4ceb38;
             border-radius: 50%;
             cursor: pointer;
         }
+
+        /* --- NUEVO: Estilo hover para el botón de reset --- */
+        #resetButton:hover {
+            filter: brightness(90%);
+        }
+
+        /* --- NUEVO: Estilos para el botón de Gemini --- */
+        #geminiButton {
+            background-color: #8b5cf6; /* violet-500 */
+        }
+        #geminiButton:hover {
+            background-color: #7c3aed; /* violet-600 */
+        }
+        #geminiButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 <body class="font-sans">
@@ -41,7 +61,8 @@
         
         <!-- ... (El resto del HTML de los controles no cambia) ... -->
         <!-- Cabecera del Menú con Botón de Plegado --><div class="flex justify-between items-center mb-4" id="controls-header">
-            <h1 class="text-2xl font-bold text-emerald-400">Controles</h1>
+            <!-- --- MODIFICADO: Eliminada clase text-emerald-400 y añadido estilo inline --- -->
+            <h1 class="text-2xl font-bold" style="color: #4ceb38;">Controles</h1>
             <button id="toggleControlsButton" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium py-1 px-3 rounded-lg">
                 Ocultar
             </button>
@@ -94,8 +115,16 @@
                     Cargando...
                 </button>
             </div>
+
+            <!-- --- NUEVO: Botón de Gemini API --- -->
+            <div class="mb-4">
+                <button id="geminiButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                    Generar Nuevo Desafío ✨
+                </button>
+            </div>
             
-            <!-- Botón de Reset --><button id="resetButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+            <!-- Botón de Reset --><!-- --- MODIFICADO: Eliminadas clases bg-emerald-*, hover:bg-emerald-* y añadido estilo inline --- -->
+            <button id="resetButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200" style="background-color: #4ceb38;">
                 Reiniciar Posición
             </button>
         </div>
@@ -117,6 +146,9 @@
         // --- NUEVO: Botón y estado de la garra ---
         let gripperButton;
         let isGripperClosed = true; // La garra empieza cerrada
+
+        // --- NUEVO: Botón de Gemini ---
+        let geminiButton;
 
         // --- Variables para el objeto y estado de agarre ---
         let targetBox;
@@ -316,6 +348,7 @@
             joint4.position.y = 0; // Centrado en la articulación J4
             joint3.add(joint4);
 
+
             const joint4Geo = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32);
             const joint4Mesh = new THREE.Mesh(joint4Geo, jointMaterial);
             joint4Mesh.position.y = 0.3; // Ligeramente arriba
@@ -369,6 +402,8 @@
             sliderWristRoll = document.getElementById('sliderWristRoll');
             // --- MODIFICADO: Obtener el botón en lugar del slider ---
             gripperButton = document.getElementById('gripperButton');
+            // --- NUEVO: Obtener el botón de Gemini ---
+            geminiButton = document.getElementById('geminiButton');
 
             labelBase = document.getElementById('labelBase');
             labelShoulder = document.getElementById('labelShoulder');
@@ -384,6 +419,8 @@
             sliderWristRoll.addEventListener('input', updateRobot);
             // --- MODIFICADO: Event listener para el botón ---
             gripperButton.addEventListener('click', toggleGripper);
+            // --- NUEVO: Event listener para el botón de Gemini ---
+            geminiButton.addEventListener('click', generateNewChallenge);
             
             const resetButton = document.getElementById('resetButton');
             resetButton.addEventListener('click', resetRobot);
@@ -506,6 +543,123 @@
             }
         }
 
+        // --- NUEVO: Función de helper para fetch con reintentos (Exponential Backoff) ---
+        async function fetchWithBackoff(apiUrl, payload, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // Reintentar en caso de throttling o error del servidor
+                    if ((response.status === 429 || response.status >= 500) && retries > 0) {
+                        await new Promise(res => setTimeout(res, delay));
+                        return fetchWithBackoff(apiUrl, payload, retries - 1, delay * 2);
+                    } else {
+                        throw new Error(`API request failed with status: ${response.status}`);
+                    }
+                }
+                return await response.json();
+            } catch (error) {
+                // Reintentar en caso de error de red
+                if (retries > 0) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithBackoff(apiUrl, payload, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
+
+
+        // --- NUEVO: Función para llamar a la API de Gemini ---
+        async function generateNewChallenge() {
+            if (!targetBox) return;
+
+            // Estado de carga
+            geminiButton.disabled = true;
+            geminiButton.textContent = 'Generando...';
+
+            // --- MODIFICADO: Añade tu clave de API ---
+            const apiKey = "AIzaSyDC3e2zp2E-wX9RHUcyAJXzOdeV9HHbFi8"; // ¡Reemplaza esto!
+            
+            // --- MODIFICADO: Verificación de clave ---
+            if (apiKey === "AQUI_VA_TU_CLAVE_DE_API_DE_GEMINI" || apiKey === "") {
+                console.error("Error: La clave de API de Gemini no ha sido configurada.");
+                geminiButton.disabled = false;
+                geminiButton.textContent = 'Error: Falta API Key 🔑';
+                // --- NUEVO: Añadimos un color de error al botón ---
+                geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
+                return; 
+            } else {
+                 // --- NUEVO: Asegurarse de que el botón vuelva a su color normal si la clave SÍ existe ---
+                geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const currentX = targetBox.position.x.toFixed(1);
+            const currentZ = targetBox.position.z.toFixed(1);
+
+            const userPrompt = `Genera una nueva coordenada aleatoria (x, z) para un objeto en un área de -8 a 8 en ambos ejes. El robot está en (0,0). La ubicación actual del objeto es (${currentX}, ${currentZ}). Elige una ubicación diferente. Devuelve solo un objeto JSON con las claves "x" y "z". Ejemplo: { "x": 4.5, "z": -2.1 }`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "x": { "type": "NUMBER" },
+                            "z": { "type": "NUMBER" }
+                        },
+                        required: ["x", "z"]
+                    }
+                }
+            };
+
+            try {
+                const result = await fetchWithBackoff(apiUrl, payload);
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const newCoords = JSON.parse(jsonText);
+                    
+                    // Si estábamos sosteniendo el cubo, soltarlo primero
+                    if (isHoldingBox) {
+                        isHoldingBox = false;
+                        scene.attach(targetBox); // Adjuntar a la escena
+                        targetBox.material = targetBoxMaterial; // Restaurar color
+                        isGripperClosed = false; // Forzar apertura
+                        updateGripperButton();
+                        updateRobot();
+                    }
+
+                    // Mover el cubo a la nueva posición
+                    targetBox.position.set(newCoords.x, groundLevel, newCoords.z);
+                    boxVelocity.set(0, 0, 0); // Reiniciar velocidad
+                
+                } else {
+                    console.error('Respuesta inesperada de la API de Gemini:', result);
+                }
+
+            } catch (error) {
+                console.error('Error al llamar a la API de Gemini:', error);
+                // --- NUEVO: Mostrar error en el botón si la API falla (ej. 403) ---
+                geminiButton.disabled = false;
+                geminiButton.textContent = 'Error de API ⛔';
+                geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
+            } finally {
+                // Restaurar botón (solo si no hubo error Y no se está deshabilitado por falta de key)
+                if (geminiButton.textContent === 'Generando...') {
+                     geminiButton.disabled = false;
+                     geminiButton.textContent = 'Generar Nuevo Desafío ✨';
+                     geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
+                }
+            }
+        }
+
 
         function resetRobot() {
             sliderBase.value = 0;
@@ -530,6 +684,13 @@
             targetBox.position.set(0, 0.5, 4); // --- MODIFICADO: Nueva posición inicial ---
             targetBox.rotation.set(0, 0, 0); // Rotación inicial
             boxVelocity.set(0, 0, 0); // --- NUEVO: Resetear velocidad ---
+
+            // --- NUEVO: Resetear el botón de Gemini si estaba en estado de error ---
+            if (geminiButton) {
+                geminiButton.disabled = false;
+                geminiButton.textContent = 'Generar Nuevo Desafío ✨';
+                geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
+            }
         }
 
         function onWindowResize() {
