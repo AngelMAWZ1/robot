@@ -386,7 +386,7 @@
             targetBox = new THREE.Mesh(boxGeo, targetBoxMaterial);
             
             // --- MODIFICADO: Posición inicial "delante" del robot ---
-            targetBox.position.set(0, 0.5, 4); 
+            targetBox.position.set(0, -0.5, -4); 
             
             targetBox.castShadow = true;
             targetBox.receiveShadow = true;
@@ -681,7 +681,7 @@
             }
             isHoldingBox = false;
             targetBox.material = targetBoxMaterial; // Color original
-            targetBox.position.set(0, 0.5, 4); // --- MODIFICADO: Nueva posición inicial ---
+            targetBox.position.set(0, -0.5, -4); // --- MODIFICADO: Nueva posición inicial ---
             targetBox.rotation.set(0, 0, 0); // Rotación inicial
             boxVelocity.set(0, 0, 0); // --- NUEVO: Resetear velocidad ---
 
