@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brazo Robótico 3D (Three.js) - Controles Manuales</title>
+    <title>Brazo Robótico 3D (Three.js) - Pick and Place con Gravedad</title>
     <!-- Incluimos Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             background-color: #f0f0f0;
+            /* Usamos la fuente Inter de Tailwind */
+            font-family: "Inter", sans-serif;
         }
         canvas {
             display: block;
@@ -19,7 +21,7 @@
             appearance: none;
             width: 20px;
             height: 20px;
-            background: #34d399;
+            background: #34d399; /* emerald-400 */
             border-radius: 50%;
             cursor: pointer;
             margin-top: -6px;
@@ -37,6 +39,7 @@
 
     <!-- Columna de Controles (Flotante sobre el canvas) --><div id="controls-container" class="absolute bottom-4 left-4 right-4 z-20 bg-gray-800 p-4 rounded-xl shadow-2xl text-gray-200 md:top-4 md:bottom-auto md:left-4 md:right-auto md:w-full md:max-w-xs md:p-6">
         
+        <!-- ... (El resto del HTML de los controles no cambia) ... -->
         <!-- Cabecera del Menú con Botón de Plegado --><div class="flex justify-between items-center mb-4" id="controls-header">
             <h1 class="text-2xl font-bold text-emerald-400">Controles</h1>
             <button id="toggleControlsButton" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium py-1 px-3 rounded-lg">
@@ -105,10 +108,20 @@
         import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
         import { RGBELoader } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/RGBELoader.js';
 
-        let scene, camera, renderer, controls;
+        // --- MODIFICADO: Añadido Clock ---
+        let scene, camera, renderer, controls, clock;
         let base, joint1, arm1, joint2, arm2, joint3, arm3, joint4, gripperGroup, finger1, finger2;
         let sliderBase, sliderShoulder, sliderElbow, sliderWristPitch, sliderWristRoll, sliderGripper;
         let labelBase, labelShoulder, labelElbow, labelWristPitch, labelWristRoll, labelGripper;
+
+        // --- Variables para el objeto y estado de agarre ---
+        let targetBox;
+        let isHoldingBox = false;
+
+        // --- NUEVO: Constantes y variables para la gravedad ---
+        const gravity = new THREE.Vector3(0, -9.8, 0); // Aceleración de la gravedad
+        const groundLevel = 0.5; // El centro del cubo está a y=0.5 en el suelo
+        let boxVelocity = new THREE.Vector3(0, 0, 0); // Velocidad actual del cubo
 
         // --- Materiales ---
         const armMaterial = new THREE.MeshStandardMaterial({
@@ -137,7 +150,27 @@
         });
         const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.8, metalness: 0.1 });
 
+        // --- Materiales para el cubo (normal y agarrado) ---
+        const targetBoxMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0088ff, // Azul
+            metalness: 0.6,
+            roughness: 0.4,
+            envMapIntensity: 1
+        });
+        const grabbedBoxMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff8800, // Naranja
+            metalness: 0.6,
+            roughness: 0.4,
+            envMapIntensity: 1,
+            emissive: 0xff8800, // Le damos un ligero brillo
+            emissiveIntensity: 0.3
+        });
+
+
         function init() {
+            // --- NUEVO: Inicializar el Clock ---
+            clock = new THREE.Clock();
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xffffff);
 
@@ -159,6 +192,7 @@
             loadEnvironmentMap();
             createRobot();
             createGround();
+            createTargetObject(); // Llamamos a la función que crea el cubo
             setupUI();
 
             animate();
@@ -195,6 +229,8 @@
                     jointMaterial.needsUpdate = true;
                     gripperMaterial.needsUpdate = true;
                     baseMaterial.needsUpdate = true;
+                    targetBoxMaterial.needsUpdate = true;
+                    grabbedBoxMaterial.needsUpdate = true;
                 },
                 (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% loaded'); },
                 (error) => { console.error('An error happened loading the HDR:', error); }
@@ -215,6 +251,7 @@
         }
 
         function createRobot() {
+            // ... (La creación del robot no cambia) ...
             // J1: Base (Giro)
             const baseGeo = new THREE.CylinderGeometry(2, 2.2, 0.8, 32);
             base = new THREE.Mesh(baseGeo, baseMaterial);
@@ -304,7 +341,21 @@
             gripperBase.add(finger2);
         }
 
+        // --- Función para crear el objeto movible ---
+        function createTargetObject() {
+            const boxGeo = new THREE.BoxGeometry(1, 1, 1); // Cubo de 1x1x1
+            targetBox = new THREE.Mesh(boxGeo, targetBoxMaterial);
+            
+            // --- MODIFICADO: Posición inicial "delante" del robot ---
+            targetBox.position.set(0, 0.5, 4); 
+            
+            targetBox.castShadow = true;
+            targetBox.receiveShadow = true;
+            scene.add(targetBox);
+        }
+
         function setupUI() {
+            // ... (La configuración de la UI no cambia) ...
             sliderBase = document.getElementById('sliderBase');
             sliderShoulder = document.getElementById('sliderShoulder');
             sliderElbow = document.getElementById('sliderElbow');
@@ -348,6 +399,7 @@
         }
 
         function updateRobot() {
+            // ... (La actualización del robot no cambia) ...
             const baseAngle = THREE.MathUtils.degToRad(sliderBase.value);
             base.rotation.y = baseAngle;
             labelBase.textContent = `${sliderBase.value}°`;
@@ -371,8 +423,62 @@
             const gripperValue = sliderGripper.value / 100; // Valor de 0 a 0.5
             finger1.position.x = -0.3 - gripperValue;
             finger2.position.x = 0.3 + gripperValue;
-            labelGripper.textContent = gripperValue > 0.25 ? 'Abierta' : 'Cerrada';
+            
+            // Lógica de la etiqueta de la garra
+            const gripperSliderValue = parseFloat(sliderGripper.value);
+            labelGripper.textContent = gripperSliderValue > 10 ? 'Abierta' : 'Cerrada';
         }
+
+        // --- Función para comprobar el agarre ---
+        function checkGrasp() {
+            // Salir si los objetos aún no están listos
+            if (!targetBox || !gripperGroup || !sliderGripper) return;
+
+            // Obtenemos la posición MUNDIAL de la garra y el cubo
+            const gripperWorldPos = new THREE.Vector3();
+            gripperGroup.getWorldPosition(gripperWorldPos);
+            
+            const boxWorldPos = new THREE.Vector3();
+            targetBox.getWorldPosition(boxWorldPos);
+
+            // Calculamos la distancia entre la garra y el cubo
+            const distance = gripperWorldPos.distanceTo(boxWorldPos);
+            
+            // Umbral de distancia para poder agarrar (¡ajusta este valor!)
+            const graspThreshold = 1.2; 
+            
+            // Umbral del slider para considerar la garra "cerrada"
+            const gripperSliderValue = parseFloat(sliderGripper.value);
+            const gripperClosedThreshold = 10; // (0-50)
+
+            if (!isHoldingBox) {
+                // --- INTENTAR AGARRAR ---
+                // Si la garra está cerca Y está cerrada...
+                if (distance < graspThreshold && gripperSliderValue <= gripperClosedThreshold) {
+                    isHoldingBox = true;
+                    // Adjuntamos el cubo a la garra.
+                    gripperGroup.attach(targetBox);
+                    targetBox.material = grabbedBoxMaterial; // Cambiar color
+
+                    // --- NUEVO: Detener la velocidad al agarrar ---
+                    boxVelocity.set(0, 0, 0); 
+                }
+            } else {
+                // --- INTENTAR SOLTAR ---
+                // Si estamos sosteniendo el cubo Y la garra se abre...
+                if (gripperSliderValue > gripperClosedThreshold + 5) { // +5 para evitar "parpadeo"
+                    isHoldingBox = false;
+                    // Adjuntamos el cubo de vuelta a la escena principal
+                    scene.attach(targetBox);
+                    targetBox.material = targetBoxMaterial; // Devolver color original
+                    
+                    // --- MODIFICADO: Ya no forzamos la posición Y ---
+                    // La gravedad se encargará de esto en el bucle de animación.
+                    // targetBox.position.y = 0.5; // <- LÍNEA ELIMINADA
+                }
+            }
+        }
+
 
         function resetRobot() {
             sliderBase.value = 0;
@@ -381,7 +487,19 @@
             sliderWristPitch.value = 0;
             sliderWristRoll.value = 0;
             sliderGripper.value = 0;
-            updateRobot();
+            
+            updateRobot(); // Aplicar visualmente el reseteo
+
+            // --- MODIFICADO: Resetear también el objeto y su velocidad ---
+            if (isHoldingBox) {
+                // Si lo estábamos sosteniendo, soltarlo en la escena
+                scene.attach(targetBox);
+            }
+            isHoldingBox = false;
+            targetBox.material = targetBoxMaterial; // Color original
+            targetBox.position.set(0, 0.5, 4); // --- MODIFICADO: Nueva posición inicial ---
+            targetBox.rotation.set(0, 0, 0); // Rotación inicial
+            boxVelocity.set(0, 0, 0); // --- NUEVO: Resetear velocidad ---
         }
 
         function onWindowResize() {
@@ -392,7 +510,31 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            
+            // --- NUEVO: Obtener el tiempo delta para la física ---
+            const delta = clock.getDelta();
+
             controls.update();
+
+            // Comprobar el agarre en cada frame
+            checkGrasp();
+
+            // --- NUEVO: Simulación de gravedad ---
+            if (targetBox && !isHoldingBox) {
+                // Aplicar gravedad si está por encima del suelo
+                if (targetBox.position.y > groundLevel) {
+                    // v = v0 + a*t
+                    boxVelocity.addScaledVector(gravity, delta);
+                    // p = p0 + v*t
+                    targetBox.position.addScaledVector(boxVelocity, delta);
+                } else {
+                    // Si está en el suelo o por debajo, detenerlo
+                    targetBox.position.y = groundLevel;
+                    boxVelocity.set(0, 0, 0);
+                }
+            }
+            // --- Fin de simulación de gravedad ---
+            
             renderer.render(scene, camera);
         }
         
