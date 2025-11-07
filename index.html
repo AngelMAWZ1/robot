@@ -3,25 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brazo Robótico 3D (Three.js) - Pick and Place con Gravedad</title>
-    <!-- Incluimos Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <title>Simulador 3D Interactivo - Modelos Múltiples</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #f0f0f0;
-            /* Usamos la fuente Inter de Tailwind */
             font-family: "Inter", sans-serif;
         }
         canvas {
             display: block;
         }
+        /* Estilos para los 'sliders' (controles deslizantes) */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 20px;
             height: 20px;
-            /* --- MODIFICADO --- */
             background: #4ceb38;
             border-radius: 50%;
             cursor: pointer;
@@ -30,100 +28,155 @@
         input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
-            /* --- MODIFICADO --- */
             background: #4ceb38;
             border-radius: 50%;
             cursor: pointer;
         }
-
-        /* --- NUEVO: Estilo hover para el botón de reset --- */
         #resetButton:hover {
             filter: brightness(90%);
         }
-
-        /* --- NUEVO: Estilos para el botón de Gemini --- */
+        
+        /* Estilos para el botón de Gemini */
         #geminiButton {
-            background-color: #8b5cf6; /* violet-500 */
+            background-color: #8b5cf6;
         }
         #geminiButton:hover {
-            background-color: #7c3aed; /* violet-600 */
+            background-color: #7c3aed;
         }
         #geminiButton:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-
     </style>
 </head>
-<body class="font-sans">
+<body class="font-sans w-screen overflow-x-hidden">
 
-    <!-- Columna de Controles (Flotante sobre el canvas) --><div id="controls-container" class="absolute bottom-4 left-4 right-4 z-20 bg-gray-800 p-4 rounded-xl shadow-2xl text-gray-200 md:top-4 md:bottom-auto md:left-4 md:right-auto md:w-full md:max-w-xs md:p-6">
+    <!-- Menú de selección de modelo -->
+    <div id="model-switcher-container" class="absolute top-4 right-4 z-30">
         
-        <!-- ... (El resto del HTML de los controles no cambia) ... -->
-        <!-- Cabecera del Menú con Botón de Plegado --><div class="flex justify-between items-center mb-4" id="controls-header">
-            <!-- --- MODIFICADO: Eliminada clase text-emerald-400 y añadido estilo inline --- -->
+        <!-- Botón del menú de 3 puntos -->
+        <button id="model-menu-button" class="bg-gray-800 p-3 rounded-xl shadow-2xl text-gray-200 hover:bg-gray-700 focus:outline-none">
+            <!-- Icono SVG de 3 puntos (vertical) -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+        </button>
+        
+        <!-- Menú desplegable -->
+        <div id="model-menu-dropdown" class="hidden absolute top-16 right-0 bg-gray-700 text-white rounded-lg shadow-2xl overflow-hidden min-w-[220px]">
+            <button data-model="arm" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Brazo Robótico</button>
+            <button data-model="skull" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Calaverita (Día de Muertos)</button>
+        </div>
+    </div>
+
+
+    <!-- Contenedor de Controles -->
+    <div id="controls-container" class="absolute bottom-4 left-4 right-4 z-20 bg-gray-800 p-4 rounded-xl shadow-2xl text-gray-200 
+                                     md:top-4 md:bottom-auto md:right-auto md:w-full md:max-w-xs md:p-6">
+
+        <!-- Cabecera de controles -->
+        <div class="flex justify-between items-center mb-4" id="controls-header">
             <h1 class="text-2xl font-bold" style="color: #4ceb38;">Controles</h1>
             <button id="toggleControlsButton" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium py-1 px-3 rounded-lg">
                 Ocultar
             </button>
         </div>
 
-        <!-- Cuerpo del Menú (Plegable) --><div id="controls-body" class="max-h-[40vh] overflow-y-auto md:max-h-none md:overflow-y-visible">
-            <!-- J1: Base (Yaw) --><div class="mb-4">
-                <label for="sliderBase" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Base</span>
-                    <span id="labelBase">0°</span>
-                </label>
-                <input id="sliderBase" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
-
-            <!-- J2: Hombro (Pitch) --><div class="mb-4">
-                <label for="sliderShoulder" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Hombro</span>
-                    <span id="labelShoulder">0°</span>
-                </label>
-                <input id="sliderShoulder" type="range" min="-90" max="90" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
-
-            <!-- J3: Codo (Pitch) --><div class="mb-4">
-                <label for="sliderElbow" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Codo</span>
-                    <span id="labelElbow">0°</span>
-                </label>
-                <input id="sliderElbow" type="range" min="-140" max="0" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
+        <!-- Cuerpo de los controles (con scroll) -->
+        <div id="controls-body" class="max-h-[70vh] overflow-y-auto md:max-h-none md:overflow-y-visible">
             
-            <!-- J4: Muñeca (Pitch) --><div class="mb-4">
-                <label for="sliderWristPitch" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Muñeca</span>
-                    <span id="labelWristPitch">0°</span>
-                </label>
-                <input id="sliderWristPitch" type="range" min="-90" max="90" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
-
-            <!-- J5: Muñeca (Roll) --><div class="mb-4">
-                <label for="sliderWristRoll" class="flex justify-between text-sm font-medium text-gray-300">
-                    <span>Rotacion de muñeca</span>
-                    <span id="labelWristRoll">0°</span>
-                </label>
-                <input id="sliderWristRoll" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-            </div>
-            
-            <!-- --- MODIFICADO: Slider de Garra reemplazado por un botón --- -->
-            <!-- J6: Garra (Botón) --><div class="mb-4">
-                <button id="gripperButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Cargando...
-                </button>
-            </div>
-
-            <!-- --- NUEVO: Botón de Gemini API --- -->
+            <!-- Indicador de Mando -->
             <div class="mb-4">
-                <button id="geminiButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Generar Nuevo Desafío ✨
-                </button>
+                <span id="gamepad-status" class="text-sm font-medium text-red-400">Mando no detectado</span>
             </div>
-            
-            <!-- Botón de Reset --><!-- --- MODIFICADO: Eliminadas clases bg-emerald-*, hover:bg-emerald-* y añadido estilo inline --- -->
+
+            <!-- Controles del Brazo -->
+            <div id="arm-controls">
+                
+                <!-- Base -->
+                <div class="mb-4">
+                    <label for="sliderBase" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Base</span>
+                        <span id="labelBase">0°</span>
+                    </label>
+                    <input id="sliderBase" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Hombro -->
+                <div class="mb-4">
+                    <label for="sliderShoulder" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Hombro</span>
+                        <span id="labelShoulder">0°</span>
+                    </label>
+                    <input id="sliderShoulder" type="range" min="-90" max="90" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Codo -->
+                <div class="mb-4">
+                    <label for="sliderElbow" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Codo</span>
+                        <span id="labelElbow">0°</span>
+                    </label>
+                    <input id="sliderElbow" type="range" min="-140" max="0" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Muñeca (Pitch) -->
+                <div class="mb-4">
+                    <label for="sliderWristPitch" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Muñeca</span>
+                        <span id="labelWristPitch">0°</span>
+                    </label>
+                    <input id="sliderWristPitch" type="range" min="-90" max="90" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Muñeca (Roll) -->
+                <div class="mb-4">
+                    <label for="sliderWristRoll" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Rotacion de muñeca</span>
+                        <span id="labelWristRoll">0°</span>
+                    </label>
+                    <input id="sliderWristRoll" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Garra (Botón) -->
+                <div class="mb-4">
+                    <button id="gripperButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Cargando...
+                    </button>
+                </div>
+
+                <!-- Botón de Gemini API -->
+                <div class="mb-4">
+                    <button id="geminiButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Generar Nueva Posición
+                    </button>
+                </div>
+            </div>
+
+            <!-- Controles de la Calaverita -->
+            <div id="skull-controls" class="hidden">
+                <div class="mb-4">
+                    <label for="sliderSkullAzimuth" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Rotación (Giro)</span>
+                        <span id="labelSkullAzimuth">0°</span>
+                    </label>
+                    <input id="sliderSkullAzimuth" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="mb-4">
+                    <label for="sliderSkullAltitude" class="flex justify-between text-sm font-medium text-gray-300">
+                        <span>Inclinación (Cabeceo)</span>
+                        <span id="labelSkullAltitude">0°</span>
+                    </label>
+                    <input id="sliderSkullAltitude" type="range" min="-30" max="30" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Separador y Reset -->
+            <hr class="border-gray-600 my-4">
+
+            <!-- Botón de reset -->
             <button id="resetButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200" style="background-color: #4ceb38;">
                 Reiniciar Posición
             </button>
@@ -131,35 +184,51 @@
 
     </div>
 
-    <!-- Script de Three.js y OrbitControls --><script type="module">
+    <!-- Script de Three.js -->
+    <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0/build/three.module.js';
         import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
         import { RGBELoader } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/RGBELoader.js';
 
-        // --- MODIFICADO: Añadido Clock ---
+        // Variables principales de Three.js
         let scene, camera, renderer, controls, clock;
-        let base, joint1, arm1, joint2, arm2, joint3, arm3, joint4, gripperGroup, finger1, finger2;
-        // --- MODIFICADO: sliderGripper y labelGripper eliminados ---
+        
+        // Grupo para contener el modelo 3D actual
+        let modelGroup;
+        // Modelo 3D activo ('arm' o 'skull')
+        let currentModel = 'arm'; 
+
+        // --- Variables del Brazo Robótico ---
+        let base, joint1, arm1, joint2, arm2, joint3, joint4, gripperGroup, finger1, finger2;
         let sliderBase, sliderShoulder, sliderElbow, sliderWristPitch, sliderWristRoll;
         let labelBase, labelShoulder, labelElbow, labelWristPitch, labelWristRoll;
-        
-        // --- NUEVO: Botón y estado de la garra ---
         let gripperButton;
-        let isGripperClosed = true; // La garra empieza cerrada
+        let isGripperClosed = true; // Estado de la garra (abierta/cerrada)
+        let geminiButton; // Botón para llamar a la API de Gemini
 
-        // --- NUEVO: Botón de Gemini ---
-        let geminiButton;
+        // --- Estado del Mando (Gamepad) ---
+        let gamepadState = {
+            previousButtons: [], // Almacena el estado anterior de los botones del mando
+        };
+        let gamepadStatusEl; // Elemento del DOM que muestra el estado del mando
 
-        // --- Variables para el objeto y estado de agarre ---
-        let targetBox;
-        let isHoldingBox = false;
 
-        // --- NUEVO: Constantes y variables para la gravedad ---
-        const gravity = new THREE.Vector3(0, -9.8, 0); // Aceleración de la gravedad
-        const groundLevel = 0.5; // El centro del cubo está a y=0.5 en el suelo
-        let boxVelocity = new THREE.Vector3(0, 0, 0); // Velocidad actual del cubo
+        // --- Variables de la Calaverita ---
+        let skullBase, skullHead;
+        let sliderSkullAzimuth, sliderSkullAltitude;
+        let labelSkullAzimuth, labelSkullAltitude;
+        
+        // --- Contenedores de UI ---
+        let armControlsContainer, skullControlsContainer;
+        
+        // --- Variables de Escena Comunes ---
+        let projectileBox; // La caja que se puede agarrar
+        let isHoldingBox = false; // true si la garra sujeta la caja
+        const gravity = new THREE.Vector3(0, -9.8, 0); // Simulación de gravedad
+        const groundLevel = 0.5; // Nivel del suelo para la caja
+        let boxVelocity = new THREE.Vector3(0, 0, 0);
 
-        // --- Materiales ---
+        // --- Materiales (reutilizados) ---
         const armMaterial = new THREE.MeshStandardMaterial({
             color: 0xcccccc, 
             metalness: 0.9,
@@ -179,106 +248,135 @@
             envMapIntensity: 1
         });
         const baseMaterial = new THREE.MeshStandardMaterial({
-            color: 0x606060,
-            metalness: 0.7,
+            color: 0x404040,
+            metalness: 0.8,
             roughness: 0.5,
             envMapIntensity: 1
         });
-        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.8, metalness: 0.1 });
+        
+        // --- Materiales de la Calavera ---
+        const skullMaterial = new THREE.MeshStandardMaterial({
+            color: 0xf5deb3,
+            roughness: 0.8,
+            metalness: 0.1,
+            envMapIntensity: 0.5
+        });
+        const decoMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const decoColors = [0xff00a0, 0x00f2ea, 0xf2a400];
+        const decoMaterials = decoColors.map(c => new THREE.MeshStandardMaterial({ color: c, metalness: 0.5, roughness: 0.3, envMapIntensity: 1 }));
 
-        // --- Materiales para el cubo (normal y agarrado) ---
-        const targetBoxMaterial = new THREE.MeshStandardMaterial({
-            color: 0x0088ff, // Azul
+        // --- Materiales del Proyectil ---
+        const projectileMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0088ff,
             metalness: 0.6,
             roughness: 0.4,
             envMapIntensity: 1
         });
-        const grabbedBoxMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff8800, // Naranja
+        const grabbedProjectileMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff8800,
             metalness: 0.6,
             roughness: 0.4,
             envMapIntensity: 1,
-            emissive: 0xff8800, // Le damos un ligero brillo
+            emissive: 0xff8800,
             emissiveIntensity: 0.3
         });
 
-
+        // Inicializa la escena, cámara, renderer y controles.
         function init() {
-            // --- NUEVO: Inicializar el Clock ---
-            clock = new THREE.Clock();
+            clock = new THREE.Clock(); // Reloj para manejar el delta time en animaciones
+            scene = new THREE.Scene(); // Creación de la escena principal
+            scene.background = new THREE.Color(0xffffff); 
 
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xffffff);
-
+            // Configuración de la cámara perspectiva
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(10, 10, 15);
 
+            // Configuración del renderer (motor de renderizado)
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.enabled = true; // Habilitar sombras
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping; // Mejorar realismo de iluminación
+            renderer.toneMappingExposure = 1.0;
             document.body.appendChild(renderer.domElement);
 
+            // Controles para mover la cámara con el mouse
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 5, 0);
+            controls.target.set(0, 3, 0); // Punto donde mira la cámara
             controls.enableDamping = true;
 
-            createLights();
-            loadEnvironmentMap();
-            createRobot();
-            createGround();
-            createTargetObject(); // Llamamos a la función que crea el cubo
-            setupUI();
+            // Grupo para añadir/quitar modelos fácilmente
+            modelGroup = new THREE.Group();
+            scene.add(modelGroup);
 
-            animate();
-            window.addEventListener('resize', onWindowResize);
+            createLights(); // Añade luces a la escena
+            loadEnvironmentMap(); // Carga un mapa de entorno HDR para reflejos
+            createGround(); // Crea el suelo y la rejilla
+            createProjectileObject(); // Crea la caja que el robot puede agarrar
+            
+            createRobot(); // Carga el modelo inicial (brazo robótico)
+            
+            setupUI(); // Conecta los elementos HTML con el script
+
+            animate(); // Inicia el bucle de animación
+            window.addEventListener('resize', onWindowResize); // Escucha cambios de tamaño de ventana
         }
 
+        // Configura las luces (ambiental y direccional)
         function createLights() {
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
-
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(5, 10, 7.5);
             directionalLight.castShadow = true;
             directionalLight.shadow.mapSize.width = 1024;
             directionalLight.shadow.mapSize.height = 1024;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 50;
-            directionalLight.shadow.camera.left = -10;
-            directionalLight.shadow.camera.right = 10;
-            directionalLight.shadow.camera.top = 10;
-            directionalLight.shadow.camera.bottom = -10;
             scene.add(directionalLight);
         }
 
+        // Carga una textura HDR para reflejos realistas en los materiales.
         function loadEnvironmentMap() {
             const hdrLoader = new RGBELoader();
+            // Carga la textura
             hdrLoader.load(
                 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr',
+                // Callback cuando la textura carga
                 (texture) => {
                     texture.mapping = THREE.EquirectangularReflectionMapping;
-                    scene.environment = texture;
-
+                    scene.environment = texture; // Asigna la textura como mapa de entorno
+                    
+                    // Informa a los materiales que usen el nuevo entorno
                     armMaterial.needsUpdate = true;
                     jointMaterial.needsUpdate = true;
                     gripperMaterial.needsUpdate = true;
                     baseMaterial.needsUpdate = true;
-                    targetBoxMaterial.needsUpdate = true;
-                    grabbedBoxMaterial.needsUpdate = true;
+                    skullMaterial.needsUpdate = true;
+                    decoMaterial.needsUpdate = true;
+                    decoMaterials.forEach(m => m.needsUpdate = true);
+                    projectileMaterial.needsUpdate = true;
+                    grabbedProjectileMaterial.needsUpdate = true;
                 },
-                (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% loaded'); },
+                null,
                 (error) => { console.error('An error happened loading the HDR:', error); }
             );
         }
 
+        // Crea una rejilla y un plano para el suelo.
         function createGround() {
-            const gridHelper = new THREE.GridHelper(20, 20, 0xc0c0c0, 0xd0d0d0);
+            // Rejilla de ayuda visual
+            const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0xcccccc);
+            gridHelper.material.opacity = 0.5;
+            gridHelper.material.transparent = true;
             scene.add(gridHelper);
 
+            // Plano sólido del suelo que recibe sombras
             const planeGeo = new THREE.PlaneGeometry(20, 20);
-            const planeMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.8, metalness: 0.1 });
+            const planeMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.8, metalness: 0.2 });
             const plane = new THREE.Mesh(planeGeo, planeMat);
             plane.rotation.x = -Math.PI / 2;
             plane.position.y = -0.01;
@@ -286,173 +384,209 @@
             scene.add(plane);
         }
 
+        // Construye la geometría del brazo robótico pieza por pieza.
         function createRobot() {
-            // ... (La creación del robot no cambia) ...
-            // J1: Base (Giro)
+            // Base
             const baseGeo = new THREE.CylinderGeometry(2, 2.2, 0.8, 32);
             base = new THREE.Mesh(baseGeo, baseMaterial);
             base.position.y = 0.4;
             base.castShadow = true;
-            base.receiveShadow = true;
-            scene.add(base);
+            modelGroup.add(base);
 
-            // J2: Hombro (Pitch)
+            // Articulación 1 (Hombro)
             joint1 = new THREE.Group();
-            joint1.position.y = 0.8; // Encima de la base
+            joint1.position.y = 0.8;
             base.add(joint1);
-
             const joint1Geo = new THREE.CylinderGeometry(0.8, 0.8, 1.2, 32);
             const joint1Mesh = new THREE.Mesh(joint1Geo, jointMaterial);
-            joint1Mesh.rotation.z = Math.PI / 2; // Alinear eje X
-            joint1Mesh.castShadow = true;
+            joint1Mesh.rotation.z = Math.PI / 2;
             joint1.add(joint1Mesh);
 
-            // --- MODIFICADO: Geometría del brazo 1 (Cilindro) ---
+            // Brazo 1
             const arm1Geo = new THREE.CylinderGeometry(0.4, 0.4, 4, 32);
             arm1 = new THREE.Mesh(arm1Geo, armMaterial);
-            arm1.position.y = 2; // Desplazado desde el pivote
-            arm1.castShadow = true;
+            arm1.position.y = 2;
             joint1.add(arm1);
 
-            // J3: Codo (Pitch)
+            // Articulación 2 (Codo)
             joint2 = new THREE.Group();
-            joint2.position.y = 4; // Al final de arm1
+            joint2.position.y = 4;
             joint1.add(joint2); 
-
             const joint2Geo = new THREE.CylinderGeometry(0.7, 0.7, 1, 32);
             const joint2Mesh = new THREE.Mesh(joint2Geo, jointMaterial);
-            joint2Mesh.rotation.z = Math.PI / 2; // Alinear eje X
-            joint2Mesh.castShadow = true;
+            joint2Mesh.rotation.z = Math.PI / 2;
             joint2.add(joint2Mesh);
 
-            // --- MODIFICADO: Geometría del brazo 2 (Cilindro) ---
+            // Brazo 2
             const arm2Geo = new THREE.CylinderGeometry(0.35, 0.35, 3.5, 32);
             arm2 = new THREE.Mesh(arm2Geo, armMaterial);
             arm2.position.y = 1.75;
-            arm2.castShadow = true;
             joint2.add(arm2);
 
-            // J4: Muñeca (Pitch)
+            // Articulación 3 (Muñeca Pitch)
             joint3 = new THREE.Group();
-            joint3.position.y = 3.5; // Al final de arm2
+            joint3.position.y = 3.5;
             joint2.add(joint3);
-
             const joint3Geo = new THREE.CylinderGeometry(0.5, 0.5, 0.9, 32);
             const joint3Mesh = new THREE.Mesh(joint3Geo, jointMaterial);
-            joint3Mesh.rotation.z = Math.PI / 2; // Alinear eje X
-            joint3Mesh.castShadow = true;
+            joint3Mesh.rotation.z = Math.PI / 2;
             joint3.add(joint3Mesh);
 
-            // J5: Muñeca (Roll)
+            // Articulación 4 (Muñeca Roll)
             joint4 = new THREE.Group();
-            joint4.position.y = 0; // Centrado en la articulación J4
+            joint4.position.y = 0;
             joint3.add(joint4);
-
-
             const joint4Geo = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32);
             const joint4Mesh = new THREE.Mesh(joint4Geo, jointMaterial);
-            joint4Mesh.position.y = 0.3; // Ligeramente arriba
-            joint4Mesh.castShadow = true;
+            joint4Mesh.position.y = 0.3;
             joint4.add(joint4Mesh);
 
-            // J6: Grupo de la Garra
+            // Garra
             gripperGroup = new THREE.Group();
-            gripperGroup.position.y = 0.6; // Al final de la muñeca (roll)
+            gripperGroup.position.y = 0.6;
             joint4.add(gripperGroup);
-
-            // Base de la garra
             const gripperBaseGeo = new THREE.BoxGeometry(0.8, 0.4, 0.8);
             const gripperBase = new THREE.Mesh(gripperBaseGeo, armMaterial);
             gripperBase.position.y = 0.2;
-            gripperBase.castShadow = true;
             gripperGroup.add(gripperBase);
 
             // Dedos de la garra
             const fingerGeo = new THREE.BoxGeometry(0.2, 0.8, 0.6);
             finger1 = new THREE.Mesh(fingerGeo, gripperMaterial);
-            finger1.position.set(-0.3, 0.4, 0); // Offset inicial
-            finger1.castShadow = true;
+            finger1.position.set(-0.3, 0.4, 0);
             gripperBase.add(finger1);
-            
             finger2 = new THREE.Mesh(fingerGeo, gripperMaterial);
-            finger2.position.set(0.3, 0.4, 0); // Offset inicial
-            finger2.castShadow = true;
+            finger2.position.set(0.3, 0.4, 0);
             gripperBase.add(finger2);
         }
 
-        // --- Función para crear el objeto movible ---
-        function createTargetObject() {
-            const boxGeo = new THREE.BoxGeometry(1, 1, 1); // Cubo de 1x1x1
-            targetBox = new THREE.Mesh(boxGeo, targetBoxMaterial);
-            
-            // --- MODIFICADO: Posición inicial "delante" del robot ---
-            targetBox.position.set(0, -0.5, -4); 
-            
-            targetBox.castShadow = true;
-            targetBox.receiveShadow = true;
-            scene.add(targetBox);
+        // Construye la geometría de la calaverita pieza por pieza.
+        function createSkull() {
+            // Base de la calavera
+            const skullBaseGeo = new THREE.CylinderGeometry(1.8, 2, 0.8, 32);
+            skullBase = new THREE.Mesh(skullBaseGeo, baseMaterial);
+            skullBase.position.y = 0.4;
+            skullBase.castShadow = true;
+            modelGroup.add(skullBase);
+
+            // Cabeza (grupo para inclinación)
+            skullHead = new THREE.Group();
+            skullHead.position.y = 2.5;
+            skullBase.add(skullHead);
+
+            // Cráneo principal
+            const mainSkullGeo = new THREE.SphereGeometry(2, 32, 32);
+            const mainSkull = new THREE.Mesh(mainSkullGeo, skullMaterial); 
+            mainSkull.castShadow = true;
+            skullHead.add(mainSkull);
+
+            // Ojos
+            const eyeGeo = new THREE.SphereGeometry(0.5, 32, 32);
+            const eye1 = new THREE.Mesh(eyeGeo, decoMaterial);
+            eye1.position.set(-0.8, 0.3, 1.6);
+            eye1.scale.set(1, 1, 0.5);
+            mainSkull.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, decoMaterial);
+            eye2.position.set(0.8, 0.3, 1.6);
+            eye2.scale.set(1, 1, 0.5);
+            mainSkull.add(eye2);
+
+            // Nariz
+            const noseGeo = new THREE.SphereGeometry(0.3, 32, 32);
+            const nose = new THREE.Mesh(noseGeo, decoMaterial);
+            nose.position.set(0, -0.2, 1.8);
+            nose.scale.set(1.2, 1, 0.5);
+            mainSkull.add(nose);
+
+            // Dientes
+            const teethGeo = new THREE.BoxGeometry(1.5, 0.4, 0.3);
+            const teeth = new THREE.Mesh(teethGeo, decoMaterial);
+            teeth.position.set(0, -1.2, 1.5);
+            for(let i=0; i < 4; i++) {
+                const toothLineGeo = new THREE.BoxGeometry(0.05, 0.4, 0.35);
+                const toothLine = new THREE.Mesh(toothLineGeo, skullMaterial);
+                toothLine.position.x = -0.6 + i * 0.4;
+                teeth.add(toothLine);
+            }
+            mainSkull.add(teeth);
+
+            // Decoraciones
+            const decoGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            const deco1 = new THREE.Mesh(decoGeo, decoMaterials[0]);
+            deco1.position.set(0, 1.2, 1.5);
+            mainSkull.add(deco1);
+            const deco2 = new THREE.Mesh(decoGeo, decoMaterials[1]);
+            deco2.position.set(-0.6, 1.4, 1.4);
+            mainSkull.add(deco2);
+            const deco3 = new THREE.Mesh(decoGeo, decoMaterials[2]);
+            deco3.position.set(0.6, 1.4, 1.4);
+            mainSkull.add(deco3);
         }
 
-        function setupUI() {
-            // ... (La configuración de la UI no cambia) ...
-            sliderBase = document.getElementById('sliderBase');
-            sliderShoulder = document.getElementById('sliderShoulder');
-            sliderElbow = document.getElementById('sliderElbow');
-            sliderWristPitch = document.getElementById('sliderWristPitch');
-            sliderWristRoll = document.getElementById('sliderWristRoll');
-            // --- MODIFICADO: Obtener el botón en lugar del slider ---
-            gripperButton = document.getElementById('gripperButton');
-            // --- NUEVO: Obtener el botón de Gemini ---
-            geminiButton = document.getElementById('geminiButton');
+        // Crea el objeto (caja) con el que el robot puede interactuar.
+        function createProjectileObject() {
+            const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+            projectileBox = new THREE.Mesh(boxGeo, projectileMaterial);
+            projectileBox.position.set(0, -0.5, -4); // Posición inicial
+            projectileBox.castShadow = true;
+            projectileBox.receiveShadow = true;
+            scene.add(projectileBox);
+        }
 
-            labelBase = document.getElementById('labelBase');
-            labelShoulder = document.getElementById('labelShoulder');
-            labelElbow = document.getElementById('labelElbow');
-            labelWristPitch = document.getElementById('labelWristPitch');
-            labelWristRoll = document.getElementById('labelWristRoll');
-            // --- MODIFICADO: labelGripper eliminado ---
-
-            sliderBase.addEventListener('input', updateRobot);
-            sliderShoulder.addEventListener('input', updateRobot);
-            sliderElbow.addEventListener('input', updateRobot);
-            sliderWristPitch.addEventListener('input', updateRobot);
-            sliderWristRoll.addEventListener('input', updateRobot);
-            // --- MODIFICADO: Event listener para el botón ---
-            gripperButton.addEventListener('click', toggleGripper);
-            // --- NUEVO: Event listener para el botón de Gemini ---
-            geminiButton.addEventListener('click', generateNewChallenge);
+        // Actualiza la rotación de las partes del modelo según los sliders.
+        function updateModel() {
             
-            const resetButton = document.getElementById('resetButton');
-            resetButton.addEventListener('click', resetRobot);
+            // Lógica del Brazo Robótico
+            if (currentModel === 'arm' && base) {
+                // Convierte grados (slider) a radianes (Three.js)
+                const baseAngle = THREE.MathUtils.degToRad(sliderBase.value);
+                base.rotation.y = baseAngle; // Aplica rotación a la base
+                labelBase.textContent = `${sliderBase.value}°`; // Actualiza la etiqueta HTML
 
-            const toggleButton = document.getElementById('toggleControlsButton');
-            const controlsBody = document.getElementById('controls-body');
-            const controlsHeader = document.getElementById('controls-header');
+                const shoulderAngle = THREE.MathUtils.degToRad(sliderShoulder.value);
+                joint1.rotation.x = shoulderAngle;
+                labelShoulder.textContent = `${sliderShoulder.value}°`;
 
-            toggleButton.addEventListener('click', () => {
-                controlsBody.classList.toggle('hidden');
-                controlsHeader.classList.toggle('mb-4'); 
+                const elbowAngle = THREE.MathUtils.degToRad(sliderElbow.value);
+                joint2.rotation.x = elbowAngle;
+                labelElbow.textContent = `${sliderElbow.value}°`;
+
+                const wristPitchAngle = THREE.MathUtils.degToRad(sliderWristPitch.value);
+                joint3.rotation.x = wristPitchAngle;
+                labelWristPitch.textContent = `${sliderWristPitch.value}°`;
+
+                const wristRollAngle = THREE.MathUtils.degToRad(sliderWristRoll.value);
+                joint4.rotation.y = wristRollAngle;
+                labelWristRoll.textContent = `${sliderWristRoll.value}°`;
                 
-                if (controlsBody.classList.contains('hidden')) {
-                    toggleButton.textContent = 'Mostrar';
-                } else {
-                    toggleButton.textContent = 'Ocultar';
+                // Calcula la posición de los dedos de la garra
+                const gripperValue = isGripperClosed ? 0 : 0.5;
+                if (finger1 && finger2) {
+                    finger1.position.x = -0.3 - gripperValue;
+                    finger2.position.x = 0.3 + gripperValue;
                 }
-            });
-            
-            updateRobot();
-            // --- NUEVO: Sincronizar texto y color inicial del botón ---
-            updateGripperButton();
+            }
+
+            // Lógica de la Calaverita
+            if (currentModel === 'skull' && skullBase) {
+                const azimuth = THREE.MathUtils.degToRad(sliderSkullAzimuth.value);
+                skullBase.rotation.y = azimuth;
+                labelSkullAzimuth.textContent = `${sliderSkullAzimuth.value}°`;
+
+                const altitude = THREE.MathUtils.degToRad(sliderSkullAltitude.value);
+                skullHead.rotation.x = altitude;
+                labelSkullAltitude.textContent = `${sliderSkullAltitude.value}°`;
+            }
         }
 
-        // --- NUEVO: Función para el botón de la garra ---
+        // Cambia el estado (abierto/cerrado) de la garra.
         function toggleGripper() {
-            isGripperClosed = !isGripperClosed;
-            updateRobot(); // Aplicar el cambio visual
-            updateGripperButton(); // Actualizar el texto
+            isGripperClosed = !isGripperClosed; // Invierte el estado
+            updateModel(); // Aplica el cambio visual
+            updateGripperButton(); // Actualiza el texto y color del botón
         }
 
-        // --- NUEVO: Función para actualizar el texto y color del botón ---
+        // Actualiza el estilo y texto del botón de la garra.
         function updateGripperButton() {
             if (isGripperClosed) {
                 gripperButton.textContent = 'Abrir Garra';
@@ -465,85 +599,158 @@
             }
         }
 
-        function updateRobot() {
-            // ... (La actualización del robot no cambia) ...
-            const baseAngle = THREE.MathUtils.degToRad(sliderBase.value);
-            base.rotation.y = baseAngle;
-            labelBase.textContent = `${sliderBase.value}°`;
-
-            const shoulderAngle = THREE.MathUtils.degToRad(sliderShoulder.value);
-            joint1.rotation.x = shoulderAngle; // Rotar en X para Pitch
-            labelShoulder.textContent = `${sliderShoulder.value}°`;
+        // Obtiene referencias a los elementos del DOM y asigna eventos.
+        function setupUI() {
+            // Controles del Brazo
+            sliderBase = document.getElementById('sliderBase');
+            sliderShoulder = document.getElementById('sliderShoulder');
+            sliderElbow = document.getElementById('sliderElbow');
+            sliderWristPitch = document.getElementById('sliderWristPitch');
+            sliderWristRoll = document.getElementById('sliderWristRoll');
+            gripperButton = document.getElementById('gripperButton');
+            geminiButton = document.getElementById('geminiButton'); 
             
-            const elbowAngle = THREE.MathUtils.degToRad(sliderElbow.value);
-            joint2.rotation.x = elbowAngle; // Rotar en X para Pitch
-            labelElbow.textContent = `${sliderElbow.value}°`;
+            labelBase = document.getElementById('labelBase');
+            labelShoulder = document.getElementById('labelShoulder');
+            labelElbow = document.getElementById('labelElbow');
+            labelWristPitch = document.getElementById('labelWristPitch');
+            labelWristRoll = document.getElementById('labelWristRoll');
 
-            const wristPitchAngle = THREE.MathUtils.degToRad(sliderWristPitch.value);
-            joint3.rotation.x = wristPitchAngle; // Rotar en X para Pitch
-            labelWristPitch.textContent = `${sliderWristPitch.value}°`;
+            // Asigna eventos de 'input' a los sliders
+            sliderBase.addEventListener('input', updateModel);
+            sliderShoulder.addEventListener('input', updateModel);
+            sliderElbow.addEventListener('input', updateModel);
+            sliderWristPitch.addEventListener('input', updateModel);
+            sliderWristRoll.addEventListener('input', updateModel);
+            gripperButton.addEventListener('click', toggleGripper);
+            geminiButton.addEventListener('click', generateNewChallenge);
 
-            const wristRollAngle = THREE.MathUtils.degToRad(sliderWristRoll.value);
-            joint4.rotation.y = wristRollAngle; // Roll sigue siendo en Y
-            labelWristRoll.textContent = `${sliderWristRoll.value}°`;
+            // Indicador de Mando
+            gamepadStatusEl = document.getElementById('gamepad-status');
+            // Evento cuando se conecta un mando
+            window.addEventListener('gamepadconnected', (e) => {
+                gamepadStatusEl.textContent = `Mando: ${e.gamepad.id.substring(0, 20)}...`;
+                gamepadStatusEl.style.color = '#4ceb38';
+            });
+            // Evento cuando se desconecta un mando
+            window.addEventListener('gamepaddisconnected', (e) => {
+                gamepadStatusEl.textContent = 'Mando no detectado';
+                gamepadStatusEl.style.color = '#f87171'; // text-red-400
+            });
+
+            // Controles de la Calaverita
+            sliderSkullAzimuth = document.getElementById('sliderSkullAzimuth');
+            sliderSkullAltitude = document.getElementById('sliderSkullAltitude');
+            labelSkullAzimuth = document.getElementById('labelSkullAzimuth');
+            labelSkullAltitude = document.getElementById('labelSkullAltitude');
             
-            // --- MODIFICADO: Lógica de la garra basada en el estado (botón) ---
-            const gripperValue = isGripperClosed ? 0 : 0.5; // 0 = cerrado, 0.5 = abierto
-            finger1.position.x = -0.3 - gripperValue;
-            finger2.position.x = 0.3 + gripperValue;
+            sliderSkullAzimuth.addEventListener('input', updateModel);
+            sliderSkullAltitude.addEventListener('input', updateModel);
+
+            // Contenedores de UI
+            armControlsContainer = document.getElementById('arm-controls');
+            skullControlsContainer = document.getElementById('skull-controls');
+
+            // Lógica del Menú de Selección de Modelo
+            const modelMenuButton = document.getElementById('model-menu-button');
+            const modelMenuDropdown = document.getElementById('model-menu-dropdown');
+
+            // Mostrar/ocultar menú al hacer clic en el botón
+            modelMenuButton.addEventListener('click', (e) => {
+                e.stopPropagation(); // Evitar que el clic se propague a window
+                modelMenuDropdown.classList.toggle('hidden');
+            });
+
+            // Cambiar de modelo al hacer clic en un ítem
+            const modelMenuItems = document.querySelectorAll('.model-menu-item');
+            modelMenuItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const newModel = e.target.dataset.model;
+                    switchModel(newModel); // Llamar a la función de cambio
+                    modelMenuDropdown.classList.add('hidden'); // Ocultar menú
+                });
+            });
+
+            // Cierra el menú si se hace clic fuera de él
+            window.addEventListener('click', (e) => {
+                if (!modelMenuButton.contains(e.target) && !modelMenuDropdown.contains(e.target)) {
+                    modelMenuDropdown.classList.add('hidden');
+                }
+            });
+
+            // Controles Comunes
+            const resetButton = document.getElementById('resetButton');
+            resetButton.addEventListener('click', resetModel); // Botón de reiniciar
+
+            // Botón para ocultar/mostrar panel de controles
+            const toggleButton = document.getElementById('toggleControlsButton');
+            const controlsBody = document.getElementById('controls-body');
+            const controlsHeader = document.getElementById('controls-header');
+
+            toggleButton.addEventListener('click', () => {
+                controlsBody.classList.toggle('hidden');
+                controlsHeader.classList.toggle('mb-4'); 
+                toggleButton.textContent = controlsBody.classList.contains('hidden') ? 'Mostrar' : 'Ocultar';
+            });
             
-            // --- MODIFICADO: Lógica de la etiqueta eliminada ---
+            // Sincronización Inicial
+            updateModel(); // Pone el modelo en la posición inicial de los sliders
+            updateGripperButton(); // Pone el botón de garra en el estado inicial
+            updateControlUI(); // Muestra solo los controles del modelo activo
         }
 
-        // --- Función para comprobar el agarre ---
-        function checkGrasp() {
-            // Salir si los objetos aún no están listos
-            // --- MODIFICADO: sliderGripper eliminado de la comprobación ---
-            if (!targetBox || !gripperGroup) return;
-
-            // Obtenemos la posición MUNDIAL de la garra y el cubo
-            const gripperWorldPos = new THREE.Vector3();
-            gripperGroup.getWorldPosition(gripperWorldPos);
+        // Cambia entre el brazo y la calavera.
+        function switchModel(newModel) {
+            clearCurrentModel(); // Borra el modelo 3D anterior
+            currentModel = newModel; // Establece el nuevo modelo activo
             
-            const boxWorldPos = new THREE.Vector3();
-            targetBox.getWorldPosition(boxWorldPos);
-
-            // Calculamos la distancia entre la garra y el cubo
-            const distance = gripperWorldPos.distanceTo(boxWorldPos);
+            // Si es el brazo, créalo y habilita sus controles/objetos
+            if (currentModel === 'arm') {
+                createRobot();
+                gripperButton.disabled = false;
+                geminiButton.disabled = false;
+                projectileBox.visible = true;
+                scene.background = new THREE.Color(0xffffff);
+            // Si es la calavera, créala y deshabilita controles del brazo
+            } else if (currentModel === 'skull') {
+                createSkull();
+                gripperButton.disabled = true;
+                geminiButton.disabled = true;
+                projectileBox.visible = false;
+                scene.background = new THREE.Color(0xffffff);
+            }
             
-            // Umbral de distancia para poder agarrar (¡ajusta este valor!)
-            const graspThreshold = 1.2; 
-            
-            // --- MODIFICADO: Comprobación de agarre basada en el estado booleano ---
-            if (!isHoldingBox) {
-                // --- INTENTAR AGARRAR ---
-                // Si la garra está cerca Y está cerrada...
-                if (distance < graspThreshold && isGripperClosed) {
-                    isHoldingBox = true;
-                    // Adjuntamos el cubo a la garra.
-                    gripperGroup.attach(targetBox);
-                    targetBox.material = grabbedBoxMaterial; // Cambiar color
+            resetModel(); // Resetea la posición
+            updateControlUI(); // Muestra los controles correctos
+        }
 
-                    // --- NUEVO: Detener la velocidad al agarrar ---
-                    boxVelocity.set(0, 0, 0); 
-                }
-            } else {
-                // --- INTENTAR SOLTAR ---
-                // Si estamos sosteniendo el cubo Y la garra se abre...
-                if (!isGripperClosed) {
-                    isHoldingBox = false;
-                    // Adjuntamos el cubo de vuelta a la escena principal
-                    scene.attach(targetBox);
-                    targetBox.material = targetBoxMaterial; // Devolver color original
-                    
-                    // --- MODIFICADO: Ya no forzamos la posición Y ---
-                    // La gravedad se encargará de esto en el bucle de animación.
-                    // targetBox.position.y = 0.5; // <- LÍNEA ELIMINADA
-                }
+        // Elimina todos los objetos del grupo 'modelGroup' de la escena.
+        function clearCurrentModel() {
+            // Bucle para limpiar el grupo
+            while (modelGroup.children.length > 0) {
+                modelGroup.remove(modelGroup.children[0]);
+            }
+            // Limpia referencias de JS para liberar memoria
+            base = joint1 = arm1 = joint2 = arm2 = joint3 = joint4 = gripperGroup = finger1 = finger2 = null;
+            skullBase = skullHead = null;
+        }
+
+        // Muestra/oculta los paneles de control según el modelo activo.
+        function updateControlUI() {
+            // Oculta ambos paneles
+            armControlsContainer.classList.add('hidden');
+            skullControlsContainer.classList.add('hidden');
+
+            // Muestra solo el panel del modelo actual
+            if (currentModel === 'arm') {
+                armControlsContainer.classList.remove('hidden');
+            } else if (currentModel === 'skull') {
+                skullControlsContainer.classList.remove('hidden');
             }
         }
 
-        // --- NUEVO: Función de helper para fetch con reintentos (Exponential Backoff) ---
+        // Función 'fetch' con reintentos automáticos (Exponential Backoff).
+        // Útil para manejar errores de red o límites de tasa de API (429).
         async function fetchWithBackoff(apiUrl, payload, retries = 3, delay = 1000) {
             try {
                 const response = await fetch(apiUrl, {
@@ -553,9 +760,10 @@
                 });
 
                 if (!response.ok) {
-                    // Reintentar en caso de throttling o error del servidor
+                    // Si hay error de servidor o 'Too Many Requests', reintenta
                     if ((response.status === 429 || response.status >= 500) && retries > 0) {
-                        await new Promise(res => setTimeout(res, delay));
+                        await new Promise(res => setTimeout(res, delay)); // Espera 'delay' milisegundos
+                        // Vuelve a llamar con un reintento menos y el doble de espera
                         return fetchWithBackoff(apiUrl, payload, retries - 1, delay * 2);
                     } else {
                         throw new Error(`API request failed with status: ${response.status}`);
@@ -563,7 +771,6 @@
                 }
                 return await response.json();
             } catch (error) {
-                // Reintentar en caso de error de red
                 if (retries > 0) {
                     await new Promise(res => setTimeout(res, delay));
                     return fetchWithBackoff(apiUrl, payload, retries - 1, delay * 2);
@@ -572,42 +779,42 @@
             }
         }
 
-
-        // --- NUEVO: Función para llamar a la API de Gemini ---
+        // Llama a la API de Gemini para obtener una nueva posición para la caja.
         async function generateNewChallenge() {
-            if (!targetBox) return;
+            if (!projectileBox) return;
 
-            // Estado de carga
+            // Deshabilita el botón mientras carga
             geminiButton.disabled = true;
             geminiButton.textContent = 'Generando...';
 
-            // --- MODIFICADO: Añade tu clave de API ---
-            const apiKey = "AIzaSyDC3e2zp2E-wX9RHUcyAJXzOdeV9HHbFi8"; // ¡Reemplaza esto!
+            const apiKey = "AIzaSyDC3e2zp2E-wX9RHUcyAJXzOdeV9HHbFi8"; 
             
-            // --- MODIFICADO: Verificación de clave ---
-            if (apiKey === "AQUI_VA_TU_CLAVE_DE_API_DE_GEMINI" || apiKey === "") {
+            // Validación simple de la API Key
+            if (apiKey === "") {
                 console.error("Error: La clave de API de Gemini no ha sido configurada.");
                 geminiButton.disabled = false;
-                geminiButton.textContent = 'Error: Falta API Key 🔑';
-                // --- NUEVO: Añadimos un color de error al botón ---
+                geminiButton.textContent = 'Error: Falta API Key';
                 geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
                 return; 
             } else {
-                 // --- NUEVO: Asegurarse de que el botón vuelva a su color normal si la clave SÍ existe ---
                 geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
             }
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-            const currentX = targetBox.position.x.toFixed(1);
-            const currentZ = targetBox.position.z.toFixed(1);
+            // Obtiene la posición actual de la caja
+            const currentX = projectileBox.position.x.toFixed(1);
+            const currentZ = projectileBox.position.z.toFixed(1);
 
+            // Prompt para la IA, pidiendo una nueva coordenada en formato JSON
             const userPrompt = `Genera una nueva coordenada aleatoria (x, z) para un objeto en un área de -8 a 8 en ambos ejes. El robot está en (0,0). La ubicación actual del objeto es (${currentX}, ${currentZ}). Elige una ubicación diferente. Devuelve solo un objeto JSON con las claves "x" y "z". Ejemplo: { "x": 4.5, "z": -2.1 }`;
 
+            // Configuración de la llamada a la API
             const payload = {
                 contents: [{ parts: [{ text: userPrompt }] }],
                 generationConfig: {
-                    responseMimeType: "application/json",
+                    responseMimeType: "application/json", // Pide a Gemini que fuerce la respuesta a JSON
+                    // Define el esquema JSON esperado ({x, z})
                     responseSchema: {
                         type: "OBJECT",
                         properties: {
@@ -620,115 +827,287 @@
             };
 
             try {
+                // Llama a la API
                 const result = await fetchWithBackoff(apiUrl, payload);
+                // Extrae el texto de la respuesta
                 const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
+                // Si la API respondió correctamente
                 if (jsonText) {
-                    const newCoords = JSON.parse(jsonText);
+                    const newCoords = JSON.parse(jsonText); // Convierte el texto JSON a un objeto
                     
-                    // Si estábamos sosteniendo el cubo, soltarlo primero
+                    // Si el robot sostenía la caja, la suelta
                     if (isHoldingBox) {
                         isHoldingBox = false;
-                        scene.attach(targetBox); // Adjuntar a la escena
-                        targetBox.material = targetBoxMaterial; // Restaurar color
-                        isGripperClosed = false; // Forzar apertura
+                        scene.attach(projectileBox);
+                        projectileBox.material = projectileMaterial;
+                        isGripperClosed = false;
                         updateGripperButton();
-                        updateRobot();
+                        updateModel();
                     }
 
-                    // Mover el cubo a la nueva posición
-                    targetBox.position.set(newCoords.x, groundLevel, newCoords.z);
-                    boxVelocity.set(0, 0, 0); // Reiniciar velocidad
+                    // Mueve la caja a la nueva posición
+                    projectileBox.position.set(newCoords.x, groundLevel, newCoords.z);
+                    boxVelocity.set(0, 0, 0);
                 
                 } else {
                     console.error('Respuesta inesperada de la API de Gemini:', result);
                 }
 
             } catch (error) {
+                // Manejo de errores
                 console.error('Error al llamar a la API de Gemini:', error);
-                // --- NUEVO: Mostrar error en el botón si la API falla (ej. 403) ---
-                geminiButton.disabled = false;
-                geminiButton.textContent = 'Error de API ⛔';
+                geminiButton.textContent = 'Error de API';
                 geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
             } finally {
-                // Restaurar botón (solo si no hubo error Y no se está deshabilitado por falta de key)
+                // Se ejecuta siempre (después de try o catch)
+                // Resetea el botón solo si no hubo un error
                 if (geminiButton.textContent === 'Generando...') {
-                     geminiButton.disabled = false;
-                     geminiButton.textContent = 'Generar Nuevo Desafío ✨';
-                     geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
+                    geminiButton.disabled = false;
+                    geminiButton.textContent = 'Generar Nueva Posición';
+                    geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
                 }
             }
         }
 
 
-        function resetRobot() {
-            sliderBase.value = 0;
-            sliderShoulder.value = 0;
-            sliderElbow.value = 0;
-            sliderWristPitch.value = 0;
-            sliderWristRoll.value = 0;
-            // --- MODIFICADO: Resetear el estado de la garra ---
-            isGripperClosed = true;
-            
-            updateRobot(); // Aplicar visualmente el reseteo
-            // --- NUEVO: Actualizar texto del botón ---
-            updateGripperButton(); 
+        // Aplica una "zona muerta" (deadzone) a los ejes del joystick.
+        // Ignora movimientos muy pequeños del joystick (menores a 'threshold').
+        function applyDeadzone(value, threshold = 0.15) {
+            // Si está en la zona muerta, retorna 0
+            if (Math.abs(value) < threshold) {
+                return 0;
+            }
+            return value; // De lo contrario, retorna el valor real
+        }
 
-            // --- MODIFICADO: Resetear también el objeto y su velocidad ---
+        // Detecta una *única* pulsación de botón (evita que se active en cada frame).
+        function isButtonPressed(gp, index) {
+            if (!gp || !gp.buttons[index]) return false;
+            const pressed = gp.buttons[index].pressed; // Botón presionado ahora
+            const wasPressed = gamepadState.previousButtons[index] || false; // Estaba presionado en el frame anterior?
+            return pressed && !wasPressed; // Retorna true solo si se presionó *justo* en este frame
+        }
+
+        // Procesa la entrada del mando (joysticks y botones) en cada frame.
+        function handleGamepadInput() {
+            const gp = navigator.getGamepads()[0]; // Obtiene el primer mando conectado
+            
+            // Si no hay mando, actualiza la UI y sale
+            if (!gp) {
+                if (gamepadStatusEl.style.color !== '#f87171') {
+                    gamepadStatusEl.textContent = 'Mando no detectado';
+                    gamepadStatusEl.style.color = '#f87171';
+                }
+                gamepadState.previousButtons = [];
+                return;
+            }
+
+            // Actualiza la UI si el estado cambió a 'conectado'
+            if (gamepadStatusEl.style.color !== '#4ceb38') {
+                gamepadStatusEl.textContent = `Mando: ${gp.id.substring(0, 20)}...`;
+                gamepadStatusEl.style.color = '#4ceb38';
+            }
+
+            let needsUpdate = false;
+            const speed = 1.5;
+            const deadzone = 0.15;
+
+            // Obtiene ejes (Left Stick X, Left Stick Y, Right Stick X, Right Stick Y)
+            const lsX = applyDeadzone(gp.axes[0], deadzone);
+            const lsY = applyDeadzone(gp.axes[1], deadzone);
+            const rsX = applyDeadzone(gp.axes[2], deadzone);
+            const rsY = applyDeadzone(gp.axes[3], deadzone);
+
+            // Obtiene botones (D-Pad)
+            const dPadUp = gp.buttons[12].pressed;
+            const dPadDown = gp.buttons[13].pressed;
+
+            // Mapeo de botones para el Brazo Robótico
+            if (currentModel === 'arm') {
+                if (lsX) {
+                    // Mueve el slider de la base con el joystick izquierdo X
+                    sliderBase.value = clamp(parseFloat(sliderBase.value) + lsX * speed, sliderBase.min, sliderBase.max);
+                    needsUpdate = true;
+                }
+                if (lsY) {
+                    sliderShoulder.value = clamp(parseFloat(sliderShoulder.value) - lsY * speed, sliderShoulder.min, sliderShoulder.max);
+                    needsUpdate = true;
+                }
+                if (rsY) {
+                    sliderElbow.value = clamp(parseFloat(sliderElbow.value) - rsY * speed, sliderElbow.min, sliderElbow.max);
+                    needsUpdate = true;
+                }
+                if (rsX) {
+                    sliderWristRoll.value = clamp(parseFloat(sliderWristRoll.value) + rsX * speed, sliderWristRoll.min, sliderWristRoll.max);
+                    needsUpdate = true;
+                }
+                if (dPadUp) {
+                    sliderWristPitch.value = clamp(parseFloat(sliderWristPitch.value) + speed, sliderWristPitch.min, sliderWristPitch.max);
+                    needsUpdate = true;
+                }
+                if (dPadDown) {
+                    sliderWristPitch.value = clamp(parseFloat(sliderWristPitch.value) - speed, sliderWristPitch.min, sliderWristPitch.max);
+                    needsUpdate = true;
+                }
+                if (isButtonPressed(gp, 0)) { // 'A' -> Garra
+                    toggleGripper();
+                }
+                if (isButtonPressed(gp, 2)) { // 'X' -> Gemini
+                    geminiButton.click();
+                }
+                if (isButtonPressed(gp, 3)) { // 'Y' -> Reset
+                    resetButton.click();
+                }
+
+            // Mapeo de botones para la Calaverita
+            } else if (currentModel === 'skull') {
+                if (lsX) {
+                    sliderSkullAzimuth.value = clamp(parseFloat(sliderSkullAzimuth.value) + lsX * speed, sliderSkullAzimuth.min, sliderSkullAzimuth.max);
+                    needsUpdate = true;
+                }
+                if (lsY) {
+                    sliderSkullAltitude.value = clamp(parseFloat(sliderSkullAltitude.value) - lsY * speed, sliderSkullAltitude.min, sliderSkullAltitude.max);
+                    needsUpdate = true;
+                }
+                if (isButtonPressed(gp, 3)) { // 'Y' -> Reset
+                    resetButton.click();
+                }
+            }
+
+            // Si se movió algún slider, actualiza el modelo 3D
+            if (needsUpdate) {
+                updateModel();
+            }
+
+            // Guarda el estado actual de los botones para el próximo frame
+            gamepadState.previousButtons = gp.buttons.map(b => b.pressed);
+        }
+
+        // Función 'clamp': asegura que un valor esté entre un mínimo y un máximo.
+        function clamp(value, min, max) {
+            return Math.max(parseFloat(min), Math.min(parseFloat(max), parseFloat(value)));
+        }
+
+        // Verifica si la garra está lo suficientemente cerca de la caja para agarrarla.
+        function checkGrasp() {
+            if (currentModel !== 'arm' || !projectileBox || !gripperGroup) return;
+
+            // Obtiene la posición *global* de la garra
+            const gripperWorldPos = new THREE.Vector3();
+            gripperGroup.getWorldPosition(gripperWorldPos);
+            
+            // Obtiene la posición *global* de la caja
+            const boxWorldPos = new THREE.Vector3();
+            projectileBox.getWorldPosition(boxWorldPos);
+
+            // Calcula la distancia
+            const distance = gripperWorldPos.distanceTo(boxWorldPos);
+            const graspThreshold = 1.2; // Distancia máxima para agarrar
+            
+            // Lógica para AGARRAR
+            if (!isHoldingBox) {
+                // Si está cerca Y la garra se cerró
+                if (distance < graspThreshold && isGripperClosed) {
+                    isHoldingBox = true;
+                    gripperGroup.attach(projectileBox); // "Pega" la caja a la garra
+                    projectileBox.material = grabbedProjectileMaterial;
+                    boxVelocity.set(0, 0, 0); 
+                }
+            // Lógica para SOLTAR
+            } else {
+                // Si la garra se abrió
+                if (!isGripperClosed) {
+                    isHoldingBox = false;
+                    scene.attach(projectileBox); // "Despega" la caja de la garra
+                    projectileBox.material = projectileMaterial;
+                }
+            }
+        }
+
+        // Resetea todos los sliders y la posición de la caja.
+        function resetModel() {
+            // Resetea sliders del brazo
+            if (currentModel === 'arm') {
+                sliderBase.value = 0;
+                sliderShoulder.value = 0;
+                sliderElbow.value = 0;
+                sliderWristPitch.value = 0;
+                sliderWristRoll.value = 0;
+                isGripperClosed = true;
+                updateGripperButton(); 
+            }
+            // Resetea sliders de la calavera
+            else if (currentModel === 'skull') {
+                sliderSkullAzimuth.value = 0;
+                sliderSkullAltitude.value = 0;
+            }
+            
+            updateModel();
+
+            // Si estaba sosteniendo la caja, la suelta
             if (isHoldingBox) {
-                // Si lo estábamos sosteniendo, soltarlo en la escena
-                scene.attach(targetBox);
+                scene.attach(projectileBox);
             }
             isHoldingBox = false;
-            targetBox.material = targetBoxMaterial; // Color original
-            targetBox.position.set(0, -0.5, -4); // --- MODIFICADO: Nueva posición inicial ---
-            targetBox.rotation.set(0, 0, 0); // Rotación inicial
-            boxVelocity.set(0, 0, 0); // --- NUEVO: Resetear velocidad ---
+            projectileBox.material = projectileMaterial;
+            projectileBox.position.set(0, groundLevel, -4); // Posición inicial de la caja
+            projectileBox.rotation.set(0, 0, 0);
+            boxVelocity.set(0, 0, 0);
+            
+            if (currentModel === 'skull') {
+                projectileBox.visible = false;
+            } else {
+                projectileBox.visible = true;
+            }
 
-            // --- NUEVO: Resetear el botón de Gemini si estaba en estado de error ---
+            // Resetea el botón de Gemini
             if (geminiButton) {
                 geminiButton.disabled = false;
-                geminiButton.textContent = 'Generar Nuevo Desafío ✨';
-                geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
+                geminiButton.textContent = 'Generar Nueva Posición';
+                geminiButton.style.backgroundColor = '#8b5cf6';
             }
         }
 
+        // Se ejecuta cuando la ventana cambia de tamaño.
         function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight; // Actualiza la relación de aspecto
+            camera.updateProjectionMatrix(); // Aplica los cambios de la cámara
+            renderer.setSize(window.innerWidth, window.innerHeight); // Ajusta el tamaño del canvas
         }
 
+        // Bucle principal de animación (se llama a sí mismo 60 veces por seg).
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta(); // Tiempo desde el último frame
+
+            // Procesa la entrada del mando en cada frame
+            handleGamepadInput();
+
+            controls.update(); // Actualiza los controles de la cámara (para 'damping')
             
-            // --- NUEVO: Obtener el tiempo delta para la física ---
-            const delta = clock.getDelta();
+            if (currentModel === 'arm') {
+                checkGrasp(); // Verifica si debe agarrar/soltar la caja
+            }
 
-            controls.update();
-
-            // Comprobar el agarre en cada frame
-            checkGrasp();
-
-            // --- NUEVO: Simulación de gravedad ---
-            if (targetBox && !isHoldingBox) {
-                // Aplicar gravedad si está por encima del suelo
-                if (targetBox.position.y > groundLevel) {
-                    // v = v0 + a*t
+            // Simulación de física (gravedad) para la caja cuando está suelta
+            if (currentModel === 'arm' && !isHoldingBox && projectileBox.visible) {
+                if (projectileBox.position.y > groundLevel || boxVelocity.y < 0) {
                     boxVelocity.addScaledVector(gravity, delta);
-                    // p = p0 + v*t
-                    targetBox.position.addScaledVector(boxVelocity, delta);
-                } else {
-                    // Si está en el suelo o por debajo, detenerlo
-                    targetBox.position.y = groundLevel;
-                    boxVelocity.set(0, 0, 0);
+                    projectileBox.position.addScaledVector(boxVelocity, delta);
+                
+                    if (projectileBox.position.y <= groundLevel) {
+                        projectileBox.position.y = groundLevel;
+                        boxVelocity.set(0, 0, 0);
+                    }
                 }
             }
-            // --- Fin de simulación de gravedad ---
             
+            // Dibuja la escena
             renderer.render(scene, camera);
         }
         
+        // Llama a la función principal para iniciar la aplicación
         init();
 
     </script>
