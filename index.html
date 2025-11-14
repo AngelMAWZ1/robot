@@ -14,7 +14,6 @@
         canvas {
             display: block;
         }
-        /* Estilos para los 'sliders' (controles deslizantes) */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -35,8 +34,6 @@
         #resetButton:hover {
             filter: brightness(90%);
         }
-        
-        /* Estilos para el botón de Gemini */
         #geminiButton {
             background-color: #8b5cf6;
         }
@@ -51,12 +48,10 @@
 </head>
 <body class="font-sans w-screen overflow-x-hidden">
 
-    <!-- Menú de selección de modelo -->
+    <!-- Menu de seleccion -->
     <div id="model-switcher-container" class="absolute top-4 right-4 z-30">
         
-        <!-- Botón del menú de 3 puntos -->
         <button id="model-menu-button" class="bg-gray-800 p-3 rounded-xl shadow-2xl text-gray-200 hover:bg-gray-700 focus:outline-none">
-            <!-- Icono SVG de 3 puntos (vertical) -->
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="1"></circle>
                 <circle cx="12" cy="5" r="1"></circle>
@@ -64,10 +59,10 @@
             </svg>
         </button>
         
-        <!-- Menú desplegable -->
+        <!-- Menu desplegable -->
         <div id="model-menu-dropdown" class="hidden absolute top-16 right-0 bg-gray-700 text-white rounded-lg shadow-2xl overflow-hidden min-w-[220px]">
-            <button data-model="arm" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Brazo Robótico</button>
-            <button data-model="skull" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Calaverita (Día de Muertos)</button>
+            <button data-model="arm" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Brazo robotico</button>
+            <button data-model="skull" class="model-menu-item w-full text-left px-4 py-3 hover:bg-gray-600 focus:outline-none">Calaverita</button>
         </div>
     </div>
 
@@ -84,7 +79,7 @@
             </button>
         </div>
 
-        <!-- Cuerpo de los controles (con scroll) -->
+        <!-- Cuerpo de los controles -->
         <div id="controls-body" class="max-h-[70vh] overflow-y-auto md:max-h-none md:overflow-y-visible">
             
             <!-- Indicador de Mando -->
@@ -122,7 +117,7 @@
                     <input id="sliderElbow" type="range" min="-140" max="0" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
                 
-                <!-- Muñeca (Pitch) -->
+                <!-- Muñeca -->
                 <div class="mb-4">
                     <label for="sliderWristPitch" class="flex justify-between text-sm font-medium text-gray-300">
                         <span>Muñeca</span>
@@ -131,7 +126,7 @@
                     <input id="sliderWristPitch" type="range" min="-90" max="90" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
                 
-                <!-- Muñeca (Roll) -->
+                <!-- Muñeca -->
                 <div class="mb-4">
                     <label for="sliderWristRoll" class="flex justify-between text-sm font-medium text-gray-300">
                         <span>Rotacion de muñeca</span>
@@ -140,14 +135,14 @@
                     <input id="sliderWristRoll" type="range" min="-180" max="180" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
                 
-                <!-- Garra (Botón) -->
+                <!-- Garra -->
                 <div class="mb-4">
                     <button id="gripperButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                         Cargando...
                     </button>
                 </div>
 
-                <!-- Botón de Gemini API -->
+                <!-- Boton de Gemini API -->
                 <div class="mb-4">
                     <button id="geminiButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                         Generar Nueva Posición
@@ -176,7 +171,7 @@
             <!-- Separador y Reset -->
             <hr class="border-gray-600 my-4">
 
-            <!-- Botón de reset -->
+            <!-- Boton de reset -->
             <button id="resetButton" class="w-full text-white font-bold py-2 px-4 rounded-lg transition duration-200" style="background-color: #4ceb38;">
                 Reiniciar Posición
             </button>
@@ -195,18 +190,18 @@
         
         // Grupo para contener el modelo 3D actual
         let modelGroup;
-        // Modelo 3D activo ('arm' o 'skull')
+        // Modelo 3D activo
         let currentModel = 'arm'; 
 
-        // --- Variables del Brazo Robótico ---
+        // --- Variables del Brazo Robotico ---
         let base, joint1, arm1, joint2, arm2, joint3, joint4, gripperGroup, finger1, finger2;
         let sliderBase, sliderShoulder, sliderElbow, sliderWristPitch, sliderWristRoll;
         let labelBase, labelShoulder, labelElbow, labelWristPitch, labelWristRoll;
         let gripperButton;
-        let isGripperClosed = true; // Estado de la garra (abierta/cerrada)
-        let geminiButton; // Botón para llamar a la API de Gemini
+        let isGripperClosed = true;
+        let geminiButton;
 
-        // --- Estado del Mando (Gamepad) ---
+        // --- Estado del Mando ---
         let gamepadState = {
             previousButtons: [], // Almacena el estado anterior de los botones del mando
         };
@@ -393,7 +388,7 @@
             base.castShadow = true;
             modelGroup.add(base);
 
-            // Articulación 1 (Hombro)
+            // Hombro
             joint1 = new THREE.Group();
             joint1.position.y = 0.8;
             base.add(joint1);
@@ -527,7 +522,7 @@
         function createProjectileObject() {
             const boxGeo = new THREE.BoxGeometry(1, 1, 1);
             projectileBox = new THREE.Mesh(boxGeo, projectileMaterial);
-            projectileBox.position.set(0, -0.5, -4); // Posición inicial
+            projectileBox.position.set(0, 1, -4); // Posición inicial
             projectileBox.castShadow = true;
             projectileBox.receiveShadow = true;
             scene.add(projectileBox);
@@ -589,11 +584,11 @@
         // Actualiza el estilo y texto del botón de la garra.
         function updateGripperButton() {
             if (isGripperClosed) {
-                gripperButton.textContent = 'Abrir Garra';
+                gripperButton.textContent = 'Abrir garra';
                 gripperButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
                 gripperButton.classList.add('bg-red-500', 'hover:bg-red-600');
             } else {
-                gripperButton.textContent = 'Cerrar Garra';
+                gripperButton.textContent = 'Cerrar garra';
                 gripperButton.classList.remove('bg-red-500', 'hover:bg-red-600');
                 gripperButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
             }
@@ -791,7 +786,7 @@
             
             // Validación simple de la API Key
             if (apiKey === "") {
-                console.error("Error: La clave de API de Gemini no ha sido configurada.");
+                console.error("Error: La clave de API de gemini no ha sido configurada.");
                 geminiButton.disabled = false;
                 geminiButton.textContent = 'Error: Falta API Key';
                 geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
@@ -851,12 +846,12 @@
                     boxVelocity.set(0, 0, 0);
                 
                 } else {
-                    console.error('Respuesta inesperada de la API de Gemini:', result);
+                    console.error('Respuesta inesperada de la API de gemini:', result);
                 }
 
             } catch (error) {
                 // Manejo de errores
-                console.error('Error al llamar a la API de Gemini:', error);
+                console.error('Error al llamar a la API de gemini:', error);
                 geminiButton.textContent = 'Error de API';
                 geminiButton.style.backgroundColor = '#ef4444'; // bg-red-500
             } finally {
@@ -864,7 +859,7 @@
                 // Resetea el botón solo si no hubo un error
                 if (geminiButton.textContent === 'Generando...') {
                     geminiButton.disabled = false;
-                    geminiButton.textContent = 'Generar Nueva Posición';
+                    geminiButton.textContent = 'Generar nueva posición';
                     geminiButton.style.backgroundColor = '#8b5cf6'; // violet-500
                 }
             }
@@ -1064,7 +1059,7 @@
             // Resetea el botón de Gemini
             if (geminiButton) {
                 geminiButton.disabled = false;
-                geminiButton.textContent = 'Generar Nueva Posición';
+                geminiButton.textContent = 'Generar nueva posición';
                 geminiButton.style.backgroundColor = '#8b5cf6';
             }
         }
